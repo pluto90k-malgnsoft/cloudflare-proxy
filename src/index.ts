@@ -33,13 +33,18 @@ export default {
 		}
 
 		try {
+			// Proxy할 때 원본의 Host 헤더가 전달되면 대상 서버에서 400 에러를 낼 수 있으므로 걸러냅니다.
+			const newRequestHeaders = new Headers(request.headers);
+			newRequestHeaders.delete('host');
+
 			const fetchResponse = await fetch(targetUrl, {
 				method: request.method,
-				headers: request.headers,
+				headers: newRequestHeaders,
+				redirect: 'follow', // 리다이렉트 자동 추적
 			});
 
 			const responseHeaders = new Headers(fetchResponse.headers);
-			// Override CORS headers to allow from any origin
+			// CORS 헤더 강제 적용
 			Object.entries(corsHeaders).forEach(([key, value]) => {
 				responseHeaders.set(key, value);
 			});
