@@ -13,14 +13,44 @@
 
 export default {
 	async fetch(request, env, ctx): Promise<Response> {
+		const corsHeaders = {
+			'Access-Control-Allow-Origin': '*',
+			'Access-Control-Allow-Methods': 'GET, HEAD, POST, OPTIONS',
+			'Access-Control-Allow-Headers': '*',
+		};
+
+		if (request.method === 'OPTIONS') {
+			return new Response(null, {
+				headers: corsHeaders,
+			});
+		}
+
 		const url = new URL(request.url);
-		switch (url.pathname) {
-			case '/message':
-				return new Response('Hello, World!');
-			case '/random':
-				return new Response(crypto.randomUUID());
-			default:
-				return new Response('Not Found', { status: 404 });
+		const targetUrl = url.searchParams.get('url');
+
+		if (!targetUrl) {
+			return new Response('Missing "url" query parameter', { status: 400, headers: corsHeaders });
+		}
+
+		try {
+			const fetchResponse = await fetch(targetUrl, {
+				method: request.method,
+				headers: request.headers,
+			});
+
+			const responseHeaders = new Headers(fetchResponse.headers);
+			// Override CORS headers to allow from any origin
+			Object.entries(corsHeaders).forEach(([key, value]) => {
+				responseHeaders.set(key, value);
+			});
+
+			return new Response(fetchResponse.body, {
+				status: fetchResponse.status,
+				statusText: fetchResponse.statusText,
+				headers: responseHeaders,
+			});
+		} catch (error) {
+			return new Response(`Proxy Error: ${error}`, { status: 500, headers: corsHeaders });
 		}
 	},
 } satisfies ExportedHandler<Env>;
